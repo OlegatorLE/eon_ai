@@ -22,7 +22,7 @@ class Form(StatesGroup):
     photo = State()
 
 
-@dp.message_handler(commands=['start'], state='*')
+@dp.message_handler(commands=["start"], state="*")
 async def send_welcome(message: types.Message):
     await message.reply("Привіт! Почнімо працювати.")
     await choose_location(message)
@@ -37,20 +37,24 @@ async def choose_location(message: types.Message):
     await Form.checklist_item.set()
 
 
-@dp.message_handler(lambda message: message.text.startswith("Локація"),
-                    state=Form.checklist_item)
+@dp.message_handler(
+    lambda message: message.text.startswith("Локація"),
+    state=Form.checklist_item,
+)
 async def process_location(message: types.Message, state: FSMContext):
     """
     Обробляє вибір локації користувачем та ініціює перший крок чек-листа.
     """
     await state.update_data(location=message.text)
-    await message.answer("Локація вибрана: " + message.text,
-                         reply_markup=ReplyKeyboardRemove())
+    await message.answer(
+        "Локація вибрана: " + message.text, reply_markup=ReplyKeyboardRemove()
+    )
     await next_checklist_item(message, state, 1)
 
 
-async def next_checklist_item(message: types.Message, state: FSMContext,
-                              item_number: int):
+async def next_checklist_item(
+    message: types.Message, state: FSMContext, item_number: int
+):
     """
     Відображає наступний пункт чек-листа або завершує чек-лист,
     якщо всі пункти пройдені.
@@ -61,27 +65,32 @@ async def next_checklist_item(message: types.Message, state: FSMContext,
     await state.update_data(current_item=item_number)
     await message.answer(
         f"Чек-лист пункт {item_number}: Все чисто або залишити коментар?",
-        reply_markup=keyboard)
+        reply_markup=keyboard,
+    )
 
 
 @dp.message_handler(
     lambda message: message.text in ["Все чисто", "Залишити коментар"],
-    state=Form.checklist_item)
+    state=Form.checklist_item,
+)
 async def process_checklist_item(message: types.Message, state: FSMContext):
     """
     Обробляє відповідь користувача на поточний пункт чек-листа та переходить
     до коментаря або наступного пункту.
     """
     user_data = await state.get_data()
-    item_number = user_data['current_item']
+    item_number = user_data["current_item"]
     if message.text == "Залишити коментар":
         await state.update_data(
-            {f'checklist_item_{item_number}': 'Залишити коментар'})
+            {f"checklist_item_{item_number}": "Залишити коментар"}
+        )
         await Form.comment.set()
-        await message.answer("Будь ласка, введіть ваш коментар:",
-                             reply_markup=ReplyKeyboardRemove())
+        await message.answer(
+            "Будь ласка, введіть ваш коментар:",
+            reply_markup=ReplyKeyboardRemove(),
+        )
     else:
-        await state.update_data({f'checklist_item_{item_number}': 'Все чисто'})
+        await state.update_data({f"checklist_item_{item_number}": "Все чисто"})
         if item_number < config.CHECK_LIST_NUM:
             await next_checklist_item(message, state, item_number + 1)
         else:
@@ -95,20 +104,21 @@ async def process_comment(message: types.Message, state: FSMContext):
     або переходить до наступного пункту чек-листа.
     """
     user_data = await state.get_data()
-    item_number = user_data['current_item']
-    await state.update_data({f'comment_item_{item_number}': message.text})
+    item_number = user_data["current_item"]
+    await state.update_data({f"comment_item_{item_number}": message.text})
     await Form.photo.set()
     await message.answer(
         "Будь ласка, завантажте фотографію для цього коментаря, "
-        "або надішліть будь-яке текстове повідомлення, щоб пропустити.")
+        "або надішліть будь-яке текстове повідомлення, щоб пропустити."
+    )
 
 
-@dp.message_handler(content_types=['text'], state=Form.photo)
+@dp.message_handler(content_types=["text"], state=Form.photo)
 async def skip_photo(message: types.Message, state: FSMContext):
     await process_checklist_item(message, state)
 
 
-@dp.message_handler(content_types=['photo'], state=Form.photo)
+@dp.message_handler(content_types=["photo"], state=Form.photo)
 async def process_photo(message: types.Message, state: FSMContext):
     """
     Обробляє завантажену фотографію та зберігає її URL,
@@ -116,22 +126,22 @@ async def process_photo(message: types.Message, state: FSMContext):
     """
     try:
         photo_file = await bot.get_file(message.photo[-1].file_id)
-        photo_url = (
-            f"https://api.telegram.org/file/bot{config.TOKEN}/{photo_file.file_path}"
-        )
+        photo_url = f"https://api.telegram.org/file/bot{config.TOKEN}/{photo_file.file_path}"
         user_data = await state.get_data()
-        item_number = user_data['current_item']
-        photos = user_data.get('photos', {})
-        photos[f'photo_item_{item_number}'] = photo_url
+        item_number = user_data["current_item"]
+        photos = user_data.get("photos", {})
+        photos[f"photo_item_{item_number}"] = photo_url
         await state.update_data(photos=photos)
 
         await process_checklist_item(message, state)
     except TelegramAPIError:
         await message.reply(
-            "Виникла проблема при зв'язку з Telegram. Будь ласка, спробуйте ще раз.")
+            "Виникла проблема при зв'язку з Telegram. Будь ласка, спробуйте ще раз."
+        )
     except FileNotFoundError:
         await message.reply(
-            "Фотографія не знайдена. Будь ласка, спробуйте завантажити ще раз.")
+            "Фотографія не знайдена. Будь ласка, спробуйте завантажити ще раз."
+        )
     except Exception as e:
         await message.reply(f"Непередбачена помилка: {str(e)}")
 
@@ -164,9 +174,11 @@ def generate_report(data) -> str:
     """
     report = f"Локація: {data['location']}\n"
     for i in range(1, 6):
-        report += (f"Чек-лист пункт {i}:"
-                   f" {data.get(f'checklist_item_{i}', 'Не вказано')}\n")
-        if f'comment_item_{i}' in data:
+        report += (
+            f"Чек-лист пункт {i}:"
+            f" {data.get(f'checklist_item_{i}', 'Не вказано')}\n"
+        )
+        if f"comment_item_{i}" in data:
             report += f"Коментар: {data[f'comment_item_{i}']}\n"
     report += "Проаналізуй фото і звіт. Опиши що не так з чистотою на локації"
     return report
@@ -184,20 +196,18 @@ async def analyze_report(report, photo_urls) -> str | None:
         message_content = [{"type": "text", "text": report}]
 
         for key, url in photo_urls.items():
-            message_content.append({
-                "type": "image_url",
-                "image_url": {"url": url}
-            })
+            message_content.append(
+                {"type": "image_url", "image_url": {"url": url}}
+            )
 
         response = client.chat.completions.create(
             model="gpt-4-vision-preview",
-            messages=[{
-                "role": "user",
-                "content": message_content
-            }],
-            max_tokens=1000
+            messages=[{"role": "user", "content": message_content}],
+            max_tokens=1000,
         )
-        return response.choices[0].message.content if response.choices else None
+        return (
+            response.choices[0].message.content if response.choices else None
+        )
     except Exception as e:
         print(f"Помилка під час аналізу звіту: {e}")
         return None
