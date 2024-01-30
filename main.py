@@ -1,16 +1,13 @@
-from aiogram.utils.exceptions import TelegramAPIError
-
-import config
-
 from aiogram import Bot, Dispatcher, types
 from aiogram.contrib.fsm_storage.memory import MemoryStorage
 from aiogram.dispatcher import FSMContext
 from aiogram.dispatcher.filters.state import State, StatesGroup
 from aiogram.types import ReplyKeyboardMarkup, ReplyKeyboardRemove
 from aiogram.utils import executor
-
+from aiogram.utils.exceptions import TelegramAPIError
 from openai import OpenAI
 
+import config
 
 bot = Bot(token=config.TOKEN)
 storage = MemoryStorage()
@@ -43,6 +40,9 @@ async def choose_location(message: types.Message):
 @dp.message_handler(lambda message: message.text.startswith("Локація"),
                     state=Form.checklist_item)
 async def process_location(message: types.Message, state: FSMContext):
+    """
+    Обробляє вибір локації користувачем та ініціює перший крок чек-листа.
+    """
     await state.update_data(location=message.text)
     await message.answer("Локація вибрана: " + message.text,
                          reply_markup=ReplyKeyboardRemove())
@@ -51,6 +51,10 @@ async def process_location(message: types.Message, state: FSMContext):
 
 async def next_checklist_item(message: types.Message, state: FSMContext,
                               item_number: int):
+    """
+    Відображає наступний пункт чек-листа або завершує чек-лист,
+    якщо всі пункти пройдені.
+    """
     keyboard = ReplyKeyboardMarkup(resize_keyboard=True)
     keyboard.add("Все чисто", "Залишити коментар")
     await Form.checklist_item.set()
@@ -64,6 +68,10 @@ async def next_checklist_item(message: types.Message, state: FSMContext,
     lambda message: message.text in ["Все чисто", "Залишити коментар"],
     state=Form.checklist_item)
 async def process_checklist_item(message: types.Message, state: FSMContext):
+    """
+    Обробляє відповідь користувача на поточний пункт чек-листа та переходить
+    до коментаря або наступного пункту.
+    """
     user_data = await state.get_data()
     item_number = user_data['current_item']
     if message.text == "Залишити коментар":
@@ -82,6 +90,10 @@ async def process_checklist_item(message: types.Message, state: FSMContext):
 
 @dp.message_handler(state=Form.comment)
 async def process_comment(message: types.Message, state: FSMContext):
+    """
+    Обробляє коментар користувача та запитує завантаження фотографії
+    або переходить до наступного пункту чек-листа.
+    """
     user_data = await state.get_data()
     item_number = user_data['current_item']
     await state.update_data({f'comment_item_{item_number}': message.text})
@@ -98,6 +110,10 @@ async def skip_photo(message: types.Message, state: FSMContext):
 
 @dp.message_handler(content_types=['photo'], state=Form.photo)
 async def process_photo(message: types.Message, state: FSMContext):
+    """
+    Обробляє завантажену фотографію та зберігає її URL,
+    переходить до наступного пункту чек-листа.
+    """
     try:
         photo_file = await bot.get_file(message.photo[-1].file_id)
         photo_url = (
@@ -121,6 +137,10 @@ async def process_photo(message: types.Message, state: FSMContext):
 
 
 async def finish_checklist(message: types.Message, state: FSMContext):
+    """
+    Формує звіт за даними чек-листа, відправляє його на аналіз
+    та ініціює новий вибір локації.
+    """
     user_data = await state.get_data()
     report = generate_report(user_data)
     photo_urls = user_data["photos"]
@@ -136,6 +156,12 @@ async def finish_checklist(message: types.Message, state: FSMContext):
 
 
 def generate_report(data) -> str:
+    """
+    Формує текстовий звіт на основі даних чек-листа.
+
+    :param data: Словник з даними чек-листа.
+    :return: Сформований звіт у вигляді рядка.
+    """
     report = f"Локація: {data['location']}\n"
     for i in range(1, 6):
         report += (f"Чек-лист пункт {i}:"
@@ -147,6 +173,13 @@ def generate_report(data) -> str:
 
 
 async def analyze_report(report, photo_urls) -> str | None:
+    """
+    Аналізує звіт та фотографії, використовуючи OpenAI.
+
+    :param report: Текст звіту для аналізу.
+    :param photo_urls: Список URL фотографій для аналізу.
+    :return: Результат аналізу або None у разі помилки.
+    """
     try:
         message_content = [{"type": "text", "text": report}]
 
@@ -168,6 +201,7 @@ async def analyze_report(report, photo_urls) -> str | None:
     except Exception as e:
         print(f"Помилка під час аналізу звіту: {e}")
         return None
+
 
 if __name__ == "__main__":
     executor.start_polling(dp, skip_updates=True)
