@@ -1,3 +1,5 @@
+from aiogram.utils.exceptions import TelegramAPIError
+
 import config
 
 from aiogram import Bot, Dispatcher, types
@@ -96,17 +98,26 @@ async def skip_photo(message: types.Message, state: FSMContext):
 
 @dp.message_handler(content_types=['photo'], state=Form.photo)
 async def process_photo(message: types.Message, state: FSMContext):
-    photo_file = await bot.get_file(message.photo[-1].file_id)
-    photo_url = (
-        f"https://api.telegram.org/file/bot{config.TOKEN}/{photo_file.file_path}"
-    )
-    user_data = await state.get_data()
-    item_number = user_data['current_item']
-    photos = user_data.get('photos', {})
-    photos[f'photo_item_{item_number}'] = photo_url
-    await state.update_data(photos=photos)
+    try:
+        photo_file = await bot.get_file(message.photo[-1].file_id)
+        photo_url = (
+            f"https://api.telegram.org/file/bot{config.TOKEN}/{photo_file.file_path}"
+        )
+        user_data = await state.get_data()
+        item_number = user_data['current_item']
+        photos = user_data.get('photos', {})
+        photos[f'photo_item_{item_number}'] = photo_url
+        await state.update_data(photos=photos)
 
-    await process_checklist_item(message, state)
+        await process_checklist_item(message, state)
+    except TelegramAPIError:
+        await message.reply(
+            "Виникла проблема при зв'язку з Telegram. Будь ласка, спробуйте ще раз.")
+    except FileNotFoundError:
+        await message.reply(
+            "Фотографія не знайдена. Будь ласка, спробуйте завантажити ще раз.")
+    except Exception as e:
+        await message.reply(f"Непередбачена помилка: {str(e)}")
 
 
 async def finish_checklist(message: types.Message, state: FSMContext):
