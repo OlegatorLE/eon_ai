@@ -1,0 +1,6 @@
+import os
+
+TOKEN = os.getenv("BOT_TOKEN")
+ORGANIZATION = os.getenv("ORGANIZATION")
+LOCATIONS_NUM = 5
+CHECK_LIST_NUM = 5
