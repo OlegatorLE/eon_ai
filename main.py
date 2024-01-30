@@ -98,7 +98,7 @@ async def skip_photo(message: types.Message, state: FSMContext):
 async def process_photo(message: types.Message, state: FSMContext):
     photo_file = await bot.get_file(message.photo[-1].file_id)
     photo_url = (
-        f"https://api.telegram.org/file/bot{config.TOKEN}{photo_file.file_path}"
+        f"https://api.telegram.org/file/bot{config.TOKEN}/{photo_file.file_path}"
     )
     user_data = await state.get_data()
     item_number = user_data['current_item']
@@ -112,12 +112,11 @@ async def process_photo(message: types.Message, state: FSMContext):
 async def finish_checklist(message: types.Message, state: FSMContext):
     user_data = await state.get_data()
     report = generate_report(user_data)
-    photo_urls = [url for key, url in user_data.items() if
-                  key.startswith('photo_item_')]
+    photo_urls = user_data["photos"]
     analyzed_report = await analyze_report(report, photo_urls=photo_urls)
 
     if analyzed_report:
-        await message.answer("Аналізований звіт: " + analyzed_report)
+        await message.answer("Звіт: " + analyzed_report)
     else:
         await message.answer("Не вдалося проаналізувати звіт.")
 
@@ -127,16 +126,12 @@ async def finish_checklist(message: types.Message, state: FSMContext):
 
 def generate_report(data) -> str:
     report = f"Локація: {data['location']}\n"
-    photos = data.get('photos', {})
     for i in range(1, 6):
         report += (f"Чек-лист пункт {i}:"
                    f" {data.get(f'checklist_item_{i}', 'Не вказано')}\n")
         if f'comment_item_{i}' in data:
             report += f"Коментар: {data[f'comment_item_{i}']}\n"
-        if f'photo_item_{i}' in photos:
-            report += f"Фотографія: {photos[f'photo_item_{i}']}\n"
-    report += "Проаналізуй фото і звіт та дай відповідь"
-    print(report)
+    report += "Проаналізуй фото і звіт. Опиши що не так з чистотою на локації"
     return report
 
 
@@ -144,7 +139,7 @@ async def analyze_report(report, photo_urls) -> str | None:
     try:
         message_content = [{"type": "text", "text": report}]
 
-        for url in photo_urls:
+        for key, url in photo_urls.items():
             message_content.append({
                 "type": "image_url",
                 "image_url": {"url": url}
@@ -156,7 +151,7 @@ async def analyze_report(report, photo_urls) -> str | None:
                 "role": "user",
                 "content": message_content
             }],
-            max_tokens=500
+            max_tokens=1000
         )
         return response.choices[0].message.content if response.choices else None
     except Exception as e:
