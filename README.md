@@ -11,11 +11,11 @@
 ### Передумови
 
 Перед початком роботи переконайтеся, що на вашому комп'ютері встановлено наступне:
-Python 3.8 або вище
+* Python 3.8 або вище
 
 Ви повинні мати:
-Token Telegram API
-Token OpenAI API
+* Token Telegram API
+* Token OpenAI API
 
 ### Встановлення
 
@@ -34,5 +34,5 @@ pip install -r requirements.txt
 
 4. Запуск бота:
 ```
-    python main.py
+python main.py
 ```
