@@ -154,7 +154,7 @@ async def finish_checklist(message: types.Message, state: FSMContext):
     """
     user_data = await state.get_data()
     report = generate_report(user_data)
-    photo_urls = user_data["photos"]
+    photo_urls = user_data.get["photos", {}]
     analyzed_report = await analyze_report(report, photo_urls=photo_urls)
 
     if analyzed_report:
