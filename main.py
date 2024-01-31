@@ -9,10 +9,11 @@ from openai import OpenAI
 
 import config
 
+print(config.TOKEN)
 bot = Bot(token=config.TOKEN)
 storage = MemoryStorage()
 dp = Dispatcher(bot, storage=storage)
-client = OpenAI(organization=config.ORGANIZATION)
+client = OpenAI(api_key=config.OPENAI_API_KEY, organization=config.ORGANIZATION)
 
 
 class Form(StatesGroup):
@@ -184,7 +185,7 @@ def generate_report(data) -> str:
     return report
 
 
-async def analyze_report(report, photo_urls) -> str | None:
+async def analyze_report(report, photo_urls) -> str:
     """
     Аналізує звіт та фотографії, використовуючи OpenAI.
 

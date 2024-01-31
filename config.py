@@ -2,5 +2,6 @@ import os
 
 TOKEN = os.getenv("BOT_TOKEN")
 ORGANIZATION = os.getenv("ORGANIZATION")
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 LOCATIONS_NUM = 5
 CHECK_LIST_NUM = 5
